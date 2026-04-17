@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Başakşehir Belediyesi - Teknik Büro Denetim Sistemi (Bulut)</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #003057 0%, #006A4E 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .app-container { max-width: 1600px; margin: 0 auto; }
+        
+        :root {
+            --basak-lacivert: #003057;
+            --basak-turkuaz: #00A3A8;
+            --basak-yesil: #006A4E;
+            --basak-altin: #FFB81C;
+            --basak-gri: #F5F5F5;
+        }
+        
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .header-with-logo { flex-direction: column; text-align: center; gap: 10px; padding: 15px; }
+            .logo-area { justify-content: center; }
+            .nav-tabs { justify-content: center; gap: 8px; }
+            .tab-btn { padding: 6px 12px; font-size: 0.7rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .stat-card { padding: 10px; }
+            .stat-info .number { font-size: 1.3rem; }
+            .stat-icon { width: 35px; height: 35px; font-size: 1rem; }
+            .chart-container { height: 220px; }
+            .charts-section { grid-template-columns: 1fr; gap: 15px; }
+            .form-grid { grid-template-columns: 1fr; }
+            .filter-bar { flex-direction: column; }
+            .filter-group { width: 100%; }
+            .report-stats { grid-template-columns: repeat(2, 1fr); }
+            .btn-report { justify-content: center; }
+            th, td { font-size: 0.65rem; padding: 6px 4px; }
+            table { min-width: 650px; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .tab-btn { padding: 5px 8px; font-size: 0.6rem; }
+            .report-stats { grid-template-columns: 1fr; }
+        }
+        
+        @media print {
+            body { background: white; padding: 0; margin: 0; }
+            .no-print, .nav-tabs, .filter-bar, .btn-report, .pagination, .btn-reset, .tab-btn, 
+            .header-with-logo .belediye-text:last-child, .toast-message, .date-range-filter, 
+            .report-actions, .delete-btn, .btn-add, .edit-btn, .data-actions, .cloud-status { display: none !important; }
+            .report-container { padding: 10px; margin: 0; box-shadow: none; }
+            .page, .active-page, #report-page { display: block !important; }
+            .report-stats, .report-section { page-break-inside: avoid; break-inside: avoid; }
+            .report-table { width: 100%; border-collapse: collapse; }
+            .report-table th, .report-table td { border: 1px solid #ddd; padding: 4px; }
+            .report-table th { background: #003057 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .chart-container, .chart-container-small { height: 200px !important; page-break-inside: avoid; }
+            .stats-grid, .stats-card { page-break-inside: avoid; }
+        }
+        
+        .header-with-logo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: white;
+            border-radius: 20px;
+            padding: 12px 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+        .logo-area { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+        .belediye-logo-img {
+            width: 55px;
+            height: 55px;
+            object-fit: contain;
+            border-radius: 50%;
+        }
+        .belediye-text h1 { font-size: 1.2rem; color: var(--basak-lacivert); margin-bottom: 3px; }
+        .belediye-text p { font-size: 0.7rem; color: #666; }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 25px;
+            background: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            flex-wrap: wrap;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 10px 24px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--basak-lacivert), var(--basak-turkuaz));
+            color: white;
+        }
+        .tab-btn:hover:not(.active) { background: #f0f0f0; }
+        
+        .cloud-status {
+            background: white;
+            border-radius: 40px;
+            padding: 5px 15px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-left: 15px;
+        }
+        .cloud-status.sync { color: #006A4E; }
+        .cloud-status.error { color: #dc3545; }
+        .cloud-status.syncing { color: #FFB81C; }
+        
+        .page { display: none; animation: fadeIn 0.3s ease; }
+        .page.active-page { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 18px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 18px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid var(--basak-turkuaz);
+        }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-info h3 { font-size: 0.7rem; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-info .number { font-size: 1.6rem; font-weight: 800; color: var(--basak-lacivert); margin-top: 3px; }
+        .stat-icon {
+            width: 45px; height: 45px;
+            background: linear-gradient(135deg, var(--basak-lacivert), var(--basak-turkuaz));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.4rem;
+        }
+        
+        .form-panel, .filter-bar, .chart-card, .table-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .form-panel { padding: 25px; margin-bottom: 25px; }
+        .form-panel h2 { font-size: 1.2rem; margin-bottom: 18px; color: var(--basak-lacivert); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        .input-group label { font-size: 0.65rem; font-weight: 600; color: #666; text-transform: uppercase; }
+        .input-group input, .input-group select {
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+        .input-group input:focus, .input-group select:focus { outline: none; border-color: var(--basak-turkuaz); }
+        .btn-add {
+            background: linear-gradient(135deg, var(--basak-lacivert), var(--basak-turkuaz));
+            color: white;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 25px;
+        }
+        .btn-add:hover { transform: translateY(-2px); }
+        
+        .filter-bar { padding: 15px 20px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+        .filter-group { flex: 1; min-width: 140px; }
+        .filter-group label { font-size: 0.65rem; font-weight: 600; color: #888; display: block; margin-bottom: 4px; }
+        .filter-group select, .filter-group input { width: 100%; padding: 7px 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.8rem; }
+        .btn-reset {
+            background: var(--basak-gri);
+            border: none;
+            padding: 7px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--basak-lacivert);
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+        .btn-reset:hover { background: #e0e0e0; }
+        
+        .data-actions {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+        }
+        .btn-data {
+            background: linear-gradient(135deg, var(--basak-lacivert), var(--basak-turkuaz));
+            color: white;
+            border: none;
+            padding: 7px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+        .btn-data:hover { transform: translateY(-2px); }
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+        .btn-sync {
+            background: linear-gradient(135deg, #006A4E, #00A3A8);
+        }
+        
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .chart-card { padding: 18px; }
+        .chart-card.full-width { grid-column: span 2; }
+        .chart-card h4 { margin-bottom: 12px; color: var(--basak-lacivert); display: flex; align-items: center; gap: 8px; border-left: 3px solid var(--basak-turkuaz); padding-left: 10px; font-size: 1rem; flex-wrap: wrap; }
+        .chart-container { width: 100%; height: 280px; }
+        .chart-container-small { height: 260px; }
+        
+        .table-wrapper { overflow-x: auto; max-height: 500px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 750px; }
+        th {
+            background: linear-gradient(135deg, var(--basak-lacivert), var(--basak-turkuaz));
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+        td { padding: 10px 8px; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+        tr:hover td { background: #f9f9ff; }
+        .badge {
+            background: linear-gradient(135deg, var(--basak-lacivert)20, var(--basak-turkuaz)20);
+            color: var(--basak-lacivert);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: inline-block;
+            white-space: nowrap;
+        }
+        .edit-btn {
+            background: #00A3A8;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            margin-right: 5px;
+            white-space: nowrap;
+        }
+        .edit-btn:hover { background: #008080; }
+        .delete-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+        .delete-btn:hover { background: #e84118; }
+        .pagination { display: flex; justify-content: center; gap: 10px; padding: 15px; flex-wrap: wrap; }
+        .pagination button {
+            background: var(--basak-gri);
+            border: none;
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--basak-lacivert);
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+        .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .pagination button:hover:not(:disabled) { background: var(--basak-turkuaz); color: white; }
+        
+        .toast-message {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, var(--basak-lacivert), var(--basak-turkuaz));
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        .report-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 20px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn-report {
+            background: linear-gradient(135deg, var(--basak-lacivert), var(--basak-turkuaz));
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+        .report-container {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+        }
+        .report-header { text-align: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid var(--basak-turkuaz); }
+        .report-header h2 { color: var(--basak-lacivert); font-size: 1.3rem; }
+        .report-header h3 { color: var(--basak-turkuaz); font-size: 1rem; margin-top: 5px; }
+        .date-range-filter {
+            background: #f8f9fc;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+        }
+        .date-range-filter .filter-group { min-width: 180px; }
+        .report-stats {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+        .report-stat-card {
+            background: #f8f9fc;
+            border-radius: 10px;
+            padding: 8px;
+            text-align: center;
+            border-left: 3px solid var(--basak-turkuaz);
+        }
+        .report-stat-card .label { font-size: 0.6rem; color: #888; }
+        .report-stat-card .value { font-size: 1.1rem; font-weight: 700; color: var(--basak-lacivert); }
+        .report-section { margin-bottom: 20px; }
+        .report-section h4 { color: var(--basak-lacivert); font-size: 0.85rem; margin-bottom: 8px; border-left: 3px solid var(--basak-turkuaz); padding-left: 10px; }
+        
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.7rem;
+        }
+        
+        .report-table th, 
+        .report-table td {
+            border: 1px solid #ddd;
+            padding: 8px 6px;
+            text-align: center;
+        }
+        
+        .report-table th {
+            background: var(--basak-lacivert);
+            color: white;
+            font-weight: 600;
+        }
+        
+        #neighborhoodReportTable th:first-child,
+        #neighborhoodReportTable td:first-child {
+            text-align: left;
+            padding-left: 10px;
+        }
+        
+        .report-footer { margin-top: 20px; text-align: center; font-size: 0.55rem; color: #999; border-top: 1px solid #eee; padding-top: 12px; }
+        
+        .monthly-summary-table {
+            background: white;
+            border-radius: 20px;
+            padding: 18px;
+            margin-top: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .monthly-summary-table h4 {
+            margin-bottom: 12px;
+            color: var(--basak-lacivert);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-left: 3px solid var(--basak-turkuaz);
+            padding-left: 10px;
+            font-size: 1rem;
+        }
+        .monthly-summary-table table {
+            min-width: auto;
+        }
+        .monthly-summary-table th,
+        .monthly-summary-table td {
+            text-align: center;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h2 {
+            color: var(--basak-lacivert);
+            font-size: 1.2rem;
+        }
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        .close-modal:hover { color: #333; }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+        .btn-cancel {
+            padding: 10px 20px;
+            background: #ccc;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .btn-save {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--basak-lacivert), var(--basak-turkuaz));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .sync-spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="header-with-logo">
+        <div class="logo-area">
+            <img src="Başakşehir Belediyesi logo.png"
+                 alt="Başakşehir Belediyesi" class="belediye-logo-img">
+            <div class="belediye-text">
+                <h1>BAŞAKŞEHİR BELEDİYESİ</h1>
+                <p>Ruhsat ve Denetim Müdürlüğü - Teknik Büro Şefliği</p>
+            </div>
+            <div class="cloud-status" id="cloudStatus">
+                <i class="fas fa-cloud"></i> <span id="cloudStatusText">Bulut Bağlanıyor...</span>
+            </div>
+        </div>
+        <div class="belediye-text" style="text-align: right;">
+            <p><i class="fas fa-calendar-alt"></i> 2026 Yılı Denetim Verileri</p>
+            <p><i class="fas fa-chart-line"></i> Ocak - Aralık Dönemi</p>
+        </div>
+    </div>
+
+    <div class="nav-tabs no-print">
+        <button class="tab-btn" data-page="dashboard"><i class="fas fa-chart-line"></i> Dashboard</button>
+        <button class="tab-btn" data-page="stats"><i class="fas fa-chart-pie"></i> İstatistikler</button>
+        <button class="tab-btn" data-page="neighborhood"><i class="fas fa-map-marker-alt"></i> Mahalle Analizi</button>
+        <button class="tab-btn" data-page="report"><i class="fas fa-file-alt"></i> Rapor Al</button>
+        <button class="tab-btn" data-page="add"><i class="fas fa-plus-circle"></i> Yeni Kayıt</button>
+        <button class="tab-btn active" data-page="list"><i class="fas fa-list"></i> Kayıt Listesi</button>
+    </div>
+
+    <div id="dashboard-page" class="page">
+        <div class="stats-grid" id="statsGrid"></div>
+        <div class="chart-card full-width">
+            <h4><i class="fas fa-chart-line"></i> Aylık Denetim Trendi (Ocak - Aralık 2026)</h4>
+            <div id="monthlyTrendChart" class="chart-container"></div>
+        </div>
+        <div class="monthly-summary-table">
+            <h4><i class="fas fa-chart-simple"></i> Aylık Denetim Toplamları</h4>
+            <div class="table-wrapper">
+                <table style="min-width: auto;">
+                    <thead><tr><th>OCAK</th><th>ŞUBAT</th><th>MART</th><th>NİSAN</th><th>MAYIS</th><th>HAZİRAN</th><th>TEMMUZ</th><th>AĞUSTOS</th><th>EYLÜL</th><th>EKİM</th><th>KASIM</th><th>ARALIK</th><th>TOPLAM</th></tr></thead>
+                    <tbody id="monthlySummaryTableBody"><tr><td colspan="13" style="text-align:center;">Yükleniyor...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="stats-page" class="page">
+        <div class="stats-grid" id="statsGrid2"></div>
+        <div class="charts-section">
+            <div class="chart-card"><h4><i class="fas fa-chart-pie"></i> Ruhsat Türü Dağılımı</h4><div id="licenseChart" class="chart-container-small"></div></div>
+            <div class="chart-card"><h4><i class="fas fa-chart-pie"></i> Sektör Dağılımı</h4><div id="sectorChart" class="chart-container-small"></div></div>
+        </div>
+    </div>
+
+    <div id="neighborhood-page" class="page">
+        <div class="stats-grid" id="neighborhoodStats"></div>
+        <div class="filter-bar no-print">
+            <div class="filter-group"><label>Mahalle Seçiniz</label><select id="neighborhoodSelect"><option value="ALL">Tüm Mahalleler</option></select></div>
+            <div class="filter-group"><label>Grafik Tipi</label><select id="chartTypeSelect"><option value="line">Çizgi</option><option value="bar">Sütun</option></select></div>
+            <div class="filter-group"><button id="refreshNeighborhoodBtn" class="btn-reset"><i class="fas fa-chart-line"></i> Güncelle</button></div>
+        </div>
+        <div class="chart-card full-width">
+            <h4><i class="fas fa-chart-line"></i> <span id="neighborhoodChartTitle">Mahalle Bazlı Aylık Denetim Dağılımı</span></h4>
+            <div id="neighborhoodChart" class="chart-container" style="height: 320px;"></div>
+        </div>
+        <div class="table-container"><div class="table-wrapper"><table id="neighborhoodTable"><thead><tr><th>Mahalle</th><th>OCAK</th><th>ŞUBAT</th><th>MART</th><th>NİSAN</th><th>MAYIS</th><th>HAZİRAN</th><th>TEMMUZ</th><th>AĞUSTOS</th><th>EYLÜL</th><th>EKİM</th><th>KASIM</th><th>ARALIK</th><th>Toplam</th></tr></thead><tbody id="neighborhoodTableBody"></tbody></table></div></div>
+    </div>
+
+    <div id="report-page" class="page">
+        <div class="report-actions no-print">
+            <div class="date-range-filter">
+                <div class="filter-group"><label>Başlangıç Tarihi</label><input type="date" id="reportStartDate" value="2026-01-01"></div>
+                <div class="filter-group"><label>Bitiş Tarihi</label><input type="date" id="reportEndDate" value="2026-12-31"></div>
+                <div class="filter-group"><button id="applyDateRange" class="btn-reset"><i class="fas fa-calendar-alt"></i> Tarih Aralığını Uygula</button></div>
+            </div>
+            <button id="pdfReportBtn" class="btn-report"><i class="fas fa-file-pdf"></i> PDF Kaydet</button>
+        </div>
+        <div id="reportContent" class="report-container">
+            <div class="report-header">
+                <h2>BAŞAKŞEHİR BELEDİYESİ</h2>
+                <h3>Teknik Büro Şefliği - Denetim Raporu</h3>
+                <p>Rapor Tarihi: <span id="reportDate"></span></p>
+                <p>Tarih Aralığı: <span id="reportDateRange"></span></p>
+            </div>
+            <div class="report-stats" id="reportStats"></div>
+            <div class="report-section"><h4>Aylık Denetim Dağılımı</h4><table class="report-table" id="monthlyReportTable"><thead><tr><th>Ay</th><th>Denetim Sayısı</th><th>Oran (%)</th></tr></thead><tbody></tbody></table></div>
+            <div class="report-section"><h4>Ruhsat Türü Dağılımı</h4><table class="report-table" id="licenseReportTable"><thead><tr><th>Ruhsat Türü</th><th>Denetim Sayısı</th><th>Oran (%)</th></tr></thead><tbody></tbody></table></div>
+            <div class="report-section"><h4>Sektör Dağılımı</h4><table class="report-table" id="sectorReportTable"><thead><tr><th>Sektör</th><th>Denetim Sayısı</th><th>Oran (%)</th></tr></thead><tbody></tbody></table></div>
+            <div class="report-section"><h4>Mahalle Bazlı Denetimler (İlk 10)</h4><table class="report-table" id="neighborhoodReportTable"><thead><tr><th>Mahalle</th><th>Denetim Sayısı</th><th>Oran (%)</th></tr></thead><tbody></tbody></table></div>
+            <div class="report-section"><h4>Denetçi Performansı</h4><table class="report-table" id="inspectorReportTable"><thead><tr><th>Denetçi</th><th>Denetim Sayısı</th><th>Oran (%)</th></tr></thead><tbody></tbody></table></div>
+            <div class="report-footer"><p>Bu rapor Başakşehir Belediyesi Teknik Büro Şefliği tarafından otomatik olarak oluşturulmuştur.</p><p>© 2026 Başakşehir Belediyesi - Tüm hakları saklıdır.</p></div>
+        </div>
+    </div>
+
+    <div id="add-page" class="page">
+        <div class="form-panel">
+            <h2><i class="fas fa-edit"></i> Yeni Denetim Kaydı Ekle</h2>
+            <div class="form-grid">
+                <div class="input-group"><label>Ay</label><select id="newAy"><option value="OCAK">OCAK</option><option value="ŞUBAT">ŞUBAT</option><option value="MART">MART</option><option value="NİSAN">NİSAN</option><option value="MAYIS">MAYIS</option><option value="HAZİRAN">HAZİRAN</option><option value="TEMMUZ">TEMMUZ</option><option value="AĞUSTOS">AĞUSTOS</option><option value="EYLÜL">EYLÜL</option><option value="EKİM">EKİM</option><option value="KASIM">KASIM</option><option value="ARALIK">ARALIK</option></select></div>
+                <div class="input-group"><label>Tarih</label><input type="date" id="newTarih" value="2026-03-30"></div>
+                <div class="input-group"><label>Dosya No</label><input type="text" id="newDosyaNo" placeholder="Örn: 21000"></div>
+                <div class="input-group"><label>Mahalle</label><input type="text" id="newMahalle" placeholder="Mahalle" list="mahalleList"></div>
+                <div class="input-group"><label>Faaliyet</label><input type="text" id="newFaaliyet" placeholder="İşletme türü"></div>
+                <div class="input-group"><label>Ruhsat Türü</label><select id="newRuhsatTur"><option value="SIHHİ MÜESSESE">Sıhhi Müessese</option><option value="GAYRİ SIHHİ MÜESSESE">Gayri Sıhhi Müessese</option><option value="UMUMA AÇIK MÜESSESE">Umuma Açık Müessese</option></select></div>
+                <div class="input-group"><label>Sektör</label><select id="newSektor"><option value="GIDA">GIDA</option><option value="HİZMET">HİZMET</option><option value="İMALAT">İMALAT</option><option value="GIDA DIŞI PERAKENDE">GIDA DIŞI PERAKENDE</option><option value="EĞLENCE">EĞLENCE</option><option value="DİĞER">DİĞER</option></select></div>
+                <div class="input-group"><label>Denetim Türü</label><select id="newIzahat"><option value="TEKNİK DENETİM">Teknik Denetim</option><option value="HİJYEN DENETİMİ">Hijyen Denetimi</option><option value="TESPİT">Tespit</option><option value="RUTİN DENETİM">Rutin Denetim</option><option value="PROJE BAZLI DENETİM">Proje Bazlı Denetim</option><option value="ŞİKAYET DENETİMİ">Şikayet Denetimi</option></select></div>
+                <div class="input-group"><label>Raporu Tutan</label><input type="text" id="newRaporTutan" value="" list="denetciList"></div>
+                <div class="input-group"><button id="addRecordBtn" class="btn-add"><i class="fas fa-save"></i> Kaydet</button></div>
+            </div>
+            <datalist id="mahalleList">
+                <option>ŞAHİNTEPE</option><option>BAHÇEŞEHİR 1.KISIM</option><option>BAHÇEŞEHİR 2.KISIM</option>
+                <option>BAŞAKŞEHİR</option><option>KAYABAŞI</option><option>ZİYA GÖKALP</option>
+                <option>GÜVERCİNTEPE</option><option>ALTINŞEHİR</option><option>BAŞAK</option>
+                <option>ŞAMLAR</option>
+            </datalist>
+            <datalist id="denetciList"><option>ZELAL İPEK</option><option>AHMET TURAN BAĞCI</option><option>GÖZDE CAN</option><option>FURKAN GÜNGÖR</option><option>YUSUF KÜÇÜKUSTA</option></datalist>
+        </div>
+    </div>
+
+    <div id="list-page" class="page active-page">
+        <div class="filter-bar no-print">
+            <div class="filter-group"><label>Ay</label><select id="monthFilter"><option value="ALL">Tüm Aylar</option><option value="OCAK">OCAK</option><option value="ŞUBAT">ŞUBAT</option><option value="MART">MART</option><option value="NİSAN">NİSAN</option><option value="MAYIS">MAYIS</option><option value="HAZİRAN">HAZİRAN</option><option value="TEMMUZ">TEMMUZ</option><option value="AĞUSTOS">AĞUSTOS</option><option value="EYLÜL">EYLÜL</option><option value="EKİM">EKİM</option><option value="KASIM">KASIM</option><option value="ARALIK">ARALIK</option></select></div>
+            <div class="filter-group"><label>Ruhsat Türü</label><select id="licenseFilter"><option value="ALL">Tümü</option><option value="SIHHİ MÜESSESE">Sıhhi Müessese</option><option value="GAYRİ SIHHİ MÜESSESE">Gayri Sıhhi Müessese</option><option value="UMUMA AÇIK MÜESSESE">Umuma Açık Müessese</option></select></div>
+            <div class="filter-group"><label>Denetim Türü</label><select id="inspectionTypeFilter"><option value="ALL">Hepsi</option><option value="TEKNİK DENETİM">Teknik Denetim</option><option value="HİJYEN DENETİMİ">Hijyen Denetimi</option><option value="TESPİT">Tespit</option><option value="RUTİN DENETİM">Rutin Denetim</option><option value="PROJE BAZLI DENETİM">Proje Bazlı Denetim</option><option value="ŞİKAYET DENETİMİ">Şikayet Denetimi</option></select></div>
+            <div class="filter-group"><label>Arama</label><input type="text" id="searchInput" placeholder="Mahalle, faaliyet..."></div>
+            <div class="filter-group"><button id="resetFiltersBtn" class="btn-reset"><i class="fas fa-undo-alt"></i> Temizle</button></div>
+            <div class="data-actions">
+                <button id="syncToCloudBtn" class="btn-data btn-sync"><i class="fas fa-cloud-upload-alt"></i> Buluta Senkronize</button>
+                <button id="exportJSONBtn" class="btn-data"><i class="fas fa-download"></i> Yedek Al</button>
+                <button id="importJSONBtn" class="btn-data"><i class="fas fa-upload"></i> Yedek Yükle</button>
+                <button id="clearDataBtn" class="btn-data btn-danger"><i class="fas fa-trash-alt"></i> Tüm Verileri Sil</button>
+            </div>
+        </div>
+        <div class="table-container">
+            <div class="table-wrapper">
+                <table>
+                    <thead><tr><th>#</th><th>Ay</th><th>Tarih</th><th>Dosya No</th><th>Mahalle</th><th>Faaliyet</th><th>Ruhsat Türü</th><th>Sektör</th><th>Denetim Türü</th><th>Denetçi</th><th>İşlemler</th></tr></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+            <div class="pagination" id="paginationControls"></div>
+        </div>
+    </div>
+</div>
+
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header"><h2><i class="fas fa-edit"></i> Kaydı Düzenle</h2><button class="close-modal" id="closeModalBtn">&times;</button></div>
+        <div class="form-grid">
+            <div class="input-group"><label>Ay</label><select id="editAy"></select></div>
+            <div class="input-group"><label>Tarih</label><input type="date" id="editTarih"></div>
+            <div class="input-group"><label>Dosya No</label><input type="text" id="editDosyaNo"></div>
+            <div class="input-group"><label>Mahalle</label><input type="text" id="editMahalle" list="mahalleList"></div>
+            <div class="input-group"><label>Faaliyet</label><input type="text" id="editFaaliyet"></div>
+            <div class="input-group"><label>Ruhsat Türü</label><select id="editRuhsatTur"><option value="SIHHİ MÜESSESE">Sıhhi Müessese</option><option value="GAYRİ SIHHİ MÜESSESE">Gayri Sıhhi Müessese</option><option value="UMUMA AÇIK MÜESSESE">Umuma Açık Müessese</option></select></div>
+            <div class="input-group"><label>Sektör</label><select id="editSektor"><option value="GIDA">GIDA</option><option value="HİZMET">HİZMET</option><option value="İMALAT">İMALAT</option><option value="GIDA DIŞI PERAKENDE">GIDA DIŞI PERAKENDE</option><option value="EĞLENCE">EĞLENCE</option><option value="DİĞER">DİĞER</option></select></div>
+            <div class="input-group"><label>Denetim Türü</label><select id="editIzahat"><option value="TEKNİK DENETİM">Teknik Denetim</option><option value="HİJYEN DENETİMİ">Hijyen Denetimi</option><option value="TESPİT">Tespit</option><option value="RUTİN DENETİM">Rutin Denetim</option><option value="PROJE BAZLI DENETİM">Proje Bazlı Denetim</option><option value="ŞİKAYET DENETİMİ">Şikayet Denetimi</option></select></div>
+            <div class="input-group"><label>Denetçi</label><input type="text" id="editRaporTutan" list="denetciList"></div>
+        </div>
+        <div class="modal-actions"><button class="btn-cancel" id="cancelEditBtn">İptal</button><button class="btn-save" id="saveEditBtn">Kaydet</button></div>
+    </div>
+</div>
+
+<script>
+// Google Apps Script Web App URL (KENDİ URL'NİZİ BURAYA YAZIN)
+// Adım 1: https://script.google.com adresine gidin
+// Adım 2: Yeni proje oluşturun
+// Adım 3: Aşağıdaki kodu yapıştırın ve dağıtın
+// Adım 4: Çıkan URL'yi buraya yapıştırın
+
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZxTgJx6vK6p3W9rV2uL8mN4oP5qR1sT7uY2wX3zA4d/exec"; // ★ BURAYI KENDİ URL'NİZLE DEĞİŞTİRİN ★
+
+let masterData = [];
+const monthsList = ["OCAK", "ŞUBAT", "MART", "NİSAN", "MAYIS", "HAZİRAN", "TEMMUZ", "AĞUSTOS", "EYLÜL", "EKİM", "KASIM", "ARALIK"];
+const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+const denetimTurleri = ["TEKNİK DENETİM", "HİJYEN DENETİMİ", "TESPİT", "RUTİN DENETİM", "PROJE BAZLI DENETİM", "ŞİKAYET DENETİMİ"];
+const mahalleArr = ["ŞAHİNTEPE","BAHÇEŞEHİR 1.KISIM","BAHÇEŞEHİR 2.KISIM","BAŞAKŞEHİR","KAYABAŞI","ZİYA GÖKALP","GÜVERCİNTEPE","ALTINŞEHİR","BAŞAK","ŞAMLAR"];
+
+let filteredData = [...masterData];
+let currentPage = 1;
+const rowsPerPage = 30;
+let monthlyChart, licensePieChart, sectorPieChart, neighborhoodChart;
+let currentReportData = [...masterData];
+let editingId = null;
+
+function showToast(msg) { 
+    let t = document.createElement('div'); 
+    t.className = 'toast-message'; 
+    t.innerHTML = `<i class="fas fa-check-circle"></i> ${msg}`; 
+    document.body.appendChild(t); 
+    setTimeout(() => t.remove(), 3000); 
+}
+
+function updateCloudStatus(status, message) {
+    const statusDiv = document.getElementById('cloudStatus');
+    const textSpan = document.getElementById('cloudStatusText');
+    statusDiv.classList.remove('sync', 'error', 'syncing');
+    if (status === 'sync') {
+        statusDiv.classList.add('sync');
+        textSpan.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+    } else if (status === 'error') {
+        statusDiv.classList.add('error');
+        textSpan.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+    } else if (status === 'syncing') {
+        statusDiv.classList.add('syncing');
+        textSpan.innerHTML = `<span class="sync-spinner"></span> ${message}`;
+    }
+}
+
+// Google Sheets'e veri kaydetme
+async function syncToCloud() {
+    updateCloudStatus('syncing', 'Buluta senkronize ediliyor...');
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'save', data: masterData })
+        });
+        localStorage.setItem('basaksehir_last_cloud_sync', new Date().toISOString());
+        updateCloudStatus('sync', 'Bulut senkronizasyonu tamamlandı!');
+        showToast('Veriler buluta kaydedildi! Artık diğer bilgisayardan erişebilirsiniz.');
+    } catch (error) {
+        console.error('Sync error:', error);
+        updateCloudStatus('error', 'Senkronizasyon hatası!');
+        showToast('Bulut bağlantı hatası! Lütfen internetinizi kontrol edin.');
+    }
+}
+
+// Google Sheets'ten veri çekme
+async function loadFromCloud() {
+    updateCloudStatus('syncing', 'Buluttan veriler alınıyor...');
+    try {
+        const response = await fetch(`${SCRIPT_URL}?action=load`);
+        const data = await response.json();
+        if (data.success && data.data && data.data.length > 0) {
+            masterData = data.data;
+            masterData.forEach((item, idx) => item.id = idx + 1);
+            saveToLocalStorage();
+            updateCloudStatus('sync', `Buluttan ${masterData.length} kayıt yüklendi!`);
+            showToast(`${masterData.length} kayıt buluttan yüklendi!`);
+            refreshAllPages();
+        } else {
+            updateCloudStatus('error', 'Bulutta veri bulunamadı, yerel veri kullanılıyor');
+        }
+    } catch (error) {
+        console.error('Load error:', error);
+        updateCloudStatus('error', 'Bulut bağlantı hatası! Yerel veri kullanılıyor');
+    }
+}
+
+function saveToLocalStorage() {
+    try {
+        localStorage.setItem('basaksehir_denetim_data', JSON.stringify(masterData));
+        localStorage.setItem('basaksehir_last_update', new Date().toISOString());
+    } catch (e) { console.error('Save error:', e); }
+}
+
+function loadFromLocalStorage() {
+    const savedData = localStorage.getItem('basaksehir_denetim_data');
+    if (savedData) {
+        try {
+            masterData = JSON.parse(savedData);
+            masterData.forEach((item, idx) => item.id = idx + 1);
+            return true;
+        } catch (e) { return false; }
+    }
+    return false;
+}
+
+function generateSampleData() {
+    const realData = [
+        [1,"OCAK","2026-01-02","19867","ŞAHİNTEPE","BAKKAL","SIHHİ MÜESSESE","GIDA","TEKNİK DENETİM","ZELAL İPEK"],
+        [2,"OCAK","2026-01-02","19857","BAHÇEŞEHİR 1.KISIM","DAYANIKLI TÜKETİM MALLARI SATIŞI","SIHHİ MÜESSESE","GIDA DIŞI PERAKENDE","HİJYEN DENETİMİ","ZELAL İPEK"],
+        [3,"OCAK","2026-01-02","19897","BAHÇEŞEHİR 1.KISIM","FAST FOOD RESTORAN","SIHHİ MÜESSESE","GIDA","TESPİT","ZELAL İPEK"],
+        [4,"OCAK","2026-01-02","19963","ŞAHİNTEPE","HALI YIKAMA ATÖLYESİ","GAYRİ SIHHİ MÜESSESE","HİZMET","RUTİN DENETİM","AHMET TURAN BAĞCI"],
+        [5,"OCAK","2026-01-02","15269","ŞAHİNTEPE","HEDİYELİK EŞYA İMALATI","GAYRİ SIHHİ MÜESSESE","İMALAT","PROJE BAZLI DENETİM","AHMET TURAN BAĞCI"],
+        [6,"OCAK","2026-01-02","19492","ŞAHİNTEPE","KAHVEHANE","UMUMA AÇIK MÜESSESE","EĞLENCE","ŞİKAYET DENETİMİ","ZELAL İPEK"],
+        [7,"OCAK","2026-01-02","19821","BAHÇEŞEHİR 1.KISIM","KANTİN","SIHHİ MÜESSESE","GIDA","HİJYEN DENETİMİ","ZELAL İPEK"],
+        [8,"OCAK","2026-01-02","19823","BAHÇEŞEHİR 1.KISIM","KANTİN","SIHHİ MÜESSESE","GIDA","RUTİN DENETİM","ZELAL İPEK"],
+        [9,"OCAK","2026-01-02","19799","BAHÇEŞEHİR 1.KISIM","KUAFÖR","SIHHİ MÜESSESE","HİZMET","TEKNİK DENETİM","ZELAL İPEK"],
+        [10,"OCAK","2026-01-02","16900","ŞAHİNTEPE","MARANGOZ ATÖLYESİ","GAYRİ SIHHİ MÜESSESE","İMALAT","TESPİT","AHMET TURAN BAĞCI"]
+    ];
+    let allData = [...realData];
+    let idCounter = realData.length;
+    for(let monthIdx = 0; monthIdx < monthsList.length; monthIdx++) {
+        const month = monthsList[monthIdx];
+        const monthNum = monthIdx + 1;
+        const monthStr = monthNum.toString().padStart(2, '0');
+        const days = daysInMonth[monthIdx];
+        let recordCount = (month === "OCAK") ? 15 : (month === "ŞUBAT") ? 12 : (month === "MART") ? 14 : 15 + (monthIdx % 4);
+        for(let i = 0; i < recordCount; i++) {
+            idCounter++;
+            const day = (i % days) + 1;
+            const dayStr = day.toString().padStart(2, '0');
+            const tarih = `2026-${monthStr}-${dayStr}`;
+            const sektorList = ["GIDA","HİZMET","İMALAT","GIDA DIŞI PERAKENDE","EĞLENCE","DİĞER"];
+            const sektor = sektorList[idCounter % sektorList.length];
+            const izahat = denetimTurleri[idCounter % 6];
+            const mahalle = mahalleArr[idCounter % mahalleArr.length];
+            const faaliyetArr = ["BAKKAL","KAFETERYA","FAST FOOD","KANTİN","OFİS","SPOR SALONU","YEMEK ÜRETİMİ","GİYİM MAĞAZASI","KUAFÖR","OTO TAMİR"];
+            const faaliyet = faaliyetArr[idCounter % faaliyetArr.length];
+            const rapor = (idCounter % 3 === 0) ? "AHMET TURAN BAĞCI" : (idCounter % 2 === 0) ? "ZELAL İPEK" : "GÖZDE CAN";
+            const ruhsat = (idCounter % 4 === 0) ? "GAYRİ SIHHİ MÜESSESE" : (idCounter % 7 === 0) ? "UMUMA AÇIK MÜESSESE" : "SIHHİ MÜESSESE";
+            const dosyaNo = `${20000 + idCounter}`;
+            allData.push([idCounter, month, tarih, dosyaNo, mahalle, faaliyet, ruhsat, sektor, izahat, rapor]);
+        }
+    }
+    allData = allData.map((row, idx) => { row[0] = idx + 1; return row; });
+    masterData = allData.map(row => ({ id: row[0], ay: row[1], tarih: row[2], dosyaNo: String(row[3]), mahalle: row[4], faaliyet: row[5], ruhsatTur: row[6], sektor: row[7], izahat: row[8], raporTutan: row[9] }));
+}
+
+function refreshAllPages() {
+    updateDashboard();
+    updateStatsPage();
+    updateNeighborhoodPage();
+    updateReport();
+    applyFilters();
+}
+
+if (!loadFromLocalStorage()) {
+    generateSampleData();
+    saveToLocalStorage();
+}
+
+function applyDateRange() {
+    const startDate = document.getElementById('reportStartDate').value;
+    const endDate = document.getElementById('reportEndDate').value;
+    if(startDate && endDate) {
+        currentReportData = masterData.filter(d => d.tarih >= startDate && d.tarih <= endDate);
+        document.getElementById('reportDateRange').innerText = `${startDate} - ${endDate}`;
+    } else { currentReportData = [...masterData]; document.getElementById('reportDateRange').innerText = 'Tüm Zamanlar'; }
+    updateReport();
+}
+
+function openEditModal(id) {
+    const record = masterData.find(r => r.id === id);
+    if (!record) return;
+    editingId = id;
+    document.getElementById('editAy').value = record.ay;
+    document.getElementById('editTarih').value = record.tarih;
+    document.getElementById('editDosyaNo').value = record.dosyaNo;
+    document.getElementById('editMahalle').value = record.mahalle;
+    document.getElementById('editFaaliyet').value = record.faaliyet;
+    document.getElementById('editRuhsatTur').value = record.ruhsatTur;
+    document.getElementById('editSektor').value = record.sektor;
+    document.getElementById('editIzahat').value = record.izahat;
+    document.getElementById('editRaporTutan').value = record.raporTutan;
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+    editingId = null;
+}
+
+function saveEdit() {
+    if (!editingId) return;
+    const index = masterData.findIndex(r => r.id === editingId);
+    if (index === -1) return;
+    masterData[index] = { ...masterData[index], ay: document.getElementById('editAy').value, tarih: document.getElementById('editTarih').value, dosyaNo: document.getElementById('editDosyaNo').value, mahalle: document.getElementById('editMahalle').value, faaliyet: document.getElementById('editFaaliyet').value, ruhsatTur: document.getElementById('editRuhsatTur').value, sektor: document.getElementById('editSektor').value, izahat: document.getElementById('editIzahat').value, raporTutan: document.getElementById('editRaporTutan').value };
+    saveToLocalStorage();
+    refreshAllPages();
+    closeEditModal();
+    showToast('Kayıt güncellendi!');
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+        document.getElementById(btn.dataset.page + '-page').classList.add('active-page');
+        setTimeout(() => { if(monthlyChart) monthlyChart.resize(); if(licensePieChart) licensePieChart.resize(); if(sectorPieChart) sectorPieChart.resize(); if(neighborhoodChart) neighborhoodChart.resize(); }, 100);
+        if(btn.dataset.page === 'dashboard') updateDashboard();
+        if(btn.dataset.page === 'stats') updateStatsPage();
+        if(btn.dataset.page === 'neighborhood') updateNeighborhoodPage();
+        if(btn.dataset.page === 'report') { currentReportData = [...masterData]; document.getElementById('reportDateRange').innerText = 'Tüm Zamanlar'; updateReport(); }
+        if(btn.dataset.page === 'list') renderTable();
+    });
+});
+
+function updateMonthlySummaryTable() {
+    const monthlyCount = {};
+    monthsList.forEach(m => monthlyCount[m] = 0);
+    masterData.forEach(d => { if(monthlyCount[d.ay] !== undefined) monthlyCount[d.ay]++; });
+    const total = masterData.length;
+    document.getElementById('monthlySummaryTableBody').innerHTML = `<tr>${monthsList.map(m => `<td><strong>${monthlyCount[m] || 0}</strong></td>`).join('')}<td><strong style="color:#003057;">${total}</strong></td></tr>`;
+}
+
+function updateDashboard() {
+    const total = masterData.length;
+    const teknik = masterData.filter(d => d.izahat === "TEKNİK DENETİM").length;
+    const farkliMahalle = new Set(masterData.map(d => d.mahalle)).size;
+    const denetciSayisi = new Set(masterData.map(d => d.raporTutan)).size;
+    document.getElementById('statsGrid').innerHTML = `<div class="stat-card"><div class="stat-info"><h3>TOPLAM DENETİM</h3><div class="number">${total}</div></div><div class="stat-icon"><i class="fas fa-chart-line"></i></div></div><div class="stat-card"><div class="stat-info"><h3>TEKNİK DENETİM</h3><div class="number">${teknik}</div></div><div class="stat-icon"><i class="fas fa-tools"></i></div></div><div class="stat-card"><div class="stat-info"><h3>FARKLI MAHALLE</h3><div class="number">${farkliMahalle}</div></div><div class="stat-icon"><i class="fas fa-map-marker-alt"></i></div></div><div class="stat-card"><div class="stat-info"><h3>DENETÇİ SAYISI</h3><div class="number">${denetciSayisi}</div></div><div class="stat-icon"><i class="fas fa-user-check"></i></div></div>`;
+    const monthlyCount = {}; monthsList.forEach(m => monthlyCount[m] = 0); masterData.forEach(d => { if(monthlyCount[d.ay] !== undefined) monthlyCount[d.ay]++; });
+    if(monthlyChart) monthlyChart.dispose(); 
+    monthlyChart = echarts.init(document.getElementById('monthlyTrendChart'));
+    monthlyChart.setOption({ tooltip: { trigger: 'axis' }, xAxis: { type: 'category', data: monthsList, axisLabel: { rotate: 45 } }, yAxis: { type: 'value', name: 'Denetim Sayısı' }, series: [{ type: 'line', data: monthsList.map(m => monthlyCount[m]), smooth: true, lineStyle: { color: '#003057', width: 2 }, areaStyle: { opacity: 0.3, color: '#00A3A8' } }] });
+    updateMonthlySummaryTable();
+}
+
+function updateStatsPage() {
+    const total = masterData.length;
+    const sıhhi = masterData.filter(d => d.ruhsatTur === "SIHHİ MÜESSESE").length;
+    const gayri = masterData.filter(d => d.ruhsatTur === "GAYRİ SIHHİ MÜESSESE").length;
+    const umuma = masterData.filter(d => d.ruhsatTur === "UMUMA AÇIK MÜESSESE").length;
+    document.getElementById('statsGrid2').innerHTML = `<div class="stat-card"><div class="stat-info"><h3>Toplam Denetim</h3><div class="number">${total}</div></div><div class="stat-icon"><i class="fas fa-database"></i></div></div><div class="stat-card"><div class="stat-info"><h3>Sıhhi Müessese</h3><div class="number">${sıhhi}</div></div><div class="stat-icon"><i class="fas fa-store"></i></div></div><div class="stat-card"><div class="stat-info"><h3>Gayri Sıhhi</h3><div class="number">${gayri}</div></div><div class="stat-icon"><i class="fas fa-industry"></i></div></div><div class="stat-card"><div class="stat-info"><h3>Umuma Açık</h3><div class="number">${umuma}</div></div><div class="stat-icon"><i class="fas fa-door-open"></i></div></div>`;
+    let licenseCount = { "SIHHİ MÜESSESE": 0, "GAYRİ SIHHİ MÜESSESE": 0, "UMUMA AÇIK MÜESSESE": 0 }; 
+    masterData.forEach(d => { if(licenseCount[d.ruhsatTur] !== undefined) licenseCount[d.ruhsatTur]++; });
+    if(licensePieChart) licensePieChart.dispose(); 
+    licensePieChart = echarts.init(document.getElementById('licenseChart'));
+    licensePieChart.setOption({ tooltip: { trigger: 'item', formatter: '{b}: {d}% ({c})' }, series: [{ type: 'pie', radius: '50%', data: Object.entries(licenseCount).map(([n,v]) => ({ name: n, value: v })), color: ['#003057', '#00A3A8', '#006A4E'] }] });
+    let sectorMap = new Map(); masterData.forEach(d => sectorMap.set(d.sektor, (sectorMap.get(d.sektor)||0)+1));
+    let sorted = Array.from(sectorMap.entries()).sort((a,b)=>b[1]-a[1]);
+    if(sectorPieChart) sectorPieChart.dispose(); 
+    sectorPieChart = echarts.init(document.getElementById('sectorChart'));
+    sectorPieChart.setOption({ tooltip: { trigger: 'item', formatter: '{b}: {d}% ({c})' }, series: [{ type: 'pie', radius: '50%', data: sorted.map(([n,v]) => ({ name: n, value: v })) }] });
+}
+
+function updateNeighborhoodPage() {
+    const neighborhoods = [...new Set(masterData.map(d => d.mahalle))].sort();
+    const select = document.getElementById('neighborhoodSelect'); 
+    select.innerHTML = '<option value="ALL">Tüm Mahalleler</option>' + neighborhoods.map(n => `<option value="${n}">${n}</option>`).join('');
+    const count = {}; masterData.forEach(d => count[d.mahalle] = (count[d.mahalle]||0)+1);
+    let maxName='', maxCount=0; for(const [n,c] of Object.entries(count)) if(c>maxCount){maxCount=c;maxName=n;}
+    document.getElementById('neighborhoodStats').innerHTML = `<div class="stat-card"><div class="stat-info"><h3>Toplam Mahalle</h3><div class="number">${neighborhoods.length}</div></div><div class="stat-icon"><i class="fas fa-city"></i></div></div><div class="stat-card"><div class="stat-info"><h3>En Fazla Denetim</h3><div class="number">${maxName}</div><div style="font-size:0.7rem;">${maxCount} kayıt</div></div><div class="stat-icon"><i class="fas fa-trophy"></i></div></div><div class="stat-card"><div class="stat-info"><h3>Ortalama/Mahalle</h3><div class="number">${(masterData.length/neighborhoods.length).toFixed(1)}</div></div><div class="stat-icon"><i class="fas fa-chart-simple"></i></div></div>`;
+    updateNeighborhoodChart(); updateNeighborhoodTable();
+}
+
+function updateNeighborhoodChart() {
+    const selected = document.getElementById('neighborhoodSelect').value;
+    const chartType = document.getElementById('chartTypeSelect').value;
+    const neighborhoods = [...new Set(masterData.map(d => d.mahalle))].sort();
+    const ndata = {}; neighborhoods.forEach(n => { ndata[n] = {}; monthsList.forEach(m => ndata[n][m] = 0); });
+    masterData.forEach(d => { if(ndata[d.mahalle]) ndata[d.mahalle][d.ay]++; });
+    let series = [];
+    if(selected === "ALL") {
+        document.getElementById('neighborhoodChartTitle').innerHTML = "Tüm Mahalleler - Aylık Denetim Karşılaştırması";
+        const colors = ['#003057','#00A3A8','#006A4E','#4A90E2','#FFB81C','#2E8B57','#008080','#1E90FF','#32CD32','#FF6B6B'];
+        neighborhoods.forEach((n,idx) => { series.push({ name: n, type: chartType, data: monthsList.map(m => ndata[n][m]), lineStyle: { color: colors[idx%colors.length] } }); });
+    } else {
+        document.getElementById('neighborhoodChartTitle').innerHTML = `${selected} Mahallesi - Aylık Denetim Dağılımı`;
+        series = [{ name: selected, type: chartType, data: monthsList.map(m => ndata[selected]?.[m] || 0), lineStyle: { color: '#003057' }, areaStyle: chartType==='line'?{opacity:0.2,color:'#00A3A8'}:null }];
+    }
+    if(neighborhoodChart) neighborhoodChart.dispose(); 
+    neighborhoodChart = echarts.init(document.getElementById('neighborhoodChart'));
+    neighborhoodChart.setOption({ tooltip: { trigger: 'axis' }, legend: { type: 'scroll', bottom: 0 }, xAxis: { type: 'category', data: monthsList, axisLabel: { rotate: 45 } }, yAxis: { type: 'value', name: 'Denetim Sayısı' }, series: series, grid: { bottom: 60 } });
+}
+
+function updateNeighborhoodTable() {
+    const neighborhoods = [...new Set(masterData.map(d => d.mahalle))].sort();
+    const ndata = {}; neighborhoods.forEach(n => { ndata[n] = {}; monthsList.forEach(m => ndata[n][m] = 0); });
+    masterData.forEach(d => { if(ndata[d.mahalle]) ndata[d.mahalle][d.ay]++; });
+    let html = '';
+    for(const n of neighborhoods) {
+        let total = 0;
+        let row = `<tr><td style="font-weight:600;">${n}</td>`;
+        for(const m of monthsList) { const val = ndata[n][m] || 0; total += val; row += `<td>${val}</td>`; }
+        row += `<td style="font-weight:700;">${total}</td></tr>`;
+        html += row;
+    }
+    document.getElementById('neighborhoodTableBody').innerHTML = html;
+}
+
+function updateReport() {
+    document.getElementById('reportDate').innerText = new Date().toLocaleString('tr-TR');
+    const total = currentReportData.length;
+    const teknik = currentReportData.filter(d => d.izahat === "TEKNİK DENETİM").length;
+    const hijyen = currentReportData.filter(d => d.izahat === "HİJYEN DENETİMİ").length;
+    const tespit = currentReportData.filter(d => d.izahat === "TESPİT").length;
+    const rutin = currentReportData.filter(d => d.izahat === "RUTİN DENETİM").length;
+    const proje = currentReportData.filter(d => d.izahat === "PROJE BAZLI DENETİM").length;
+    const sikayet = currentReportData.filter(d => d.izahat === "ŞİKAYET DENETİMİ").length;
+    document.getElementById('reportStats').innerHTML = `<div class="report-stat-card"><div class="label">Toplam Denetim</div><div class="value">${total}</div></div><div class="report-stat-card"><div class="label">Teknik Denetim</div><div class="value">${teknik}</div></div><div class="report-stat-card"><div class="label">Hijyen Denetimi</div><div class="value">${hijyen}</div></div><div class="report-stat-card"><div class="label">Tespit</div><div class="value">${tespit}</div></div><div class="report-stat-card"><div class="label">Rutin Denetim</div><div class="value">${rutin}</div></div><div class="report-stat-card"><div class="label">Proje Bazlı</div><div class="value">${proje}</div></div><div class="report-stat-card"><div class="label">Şikayet</div><div class="value">${sikayet}</div></div>`;
+    const monthlyCount = {}; monthsList.forEach(m => monthlyCount[m] = 0); currentReportData.forEach(d => { if(monthlyCount[d.ay] !== undefined) monthlyCount[d.ay]++; });
+    let monthlyHtml = ''; monthsList.forEach(month => { const p = total > 0 ? ((monthlyCount[month]/total)*100).toFixed(1) : 0; monthlyHtml += `<tr><td style="text-align:left; padding-left:10px;">${month}</td><td>${monthlyCount[month]}</td><td>${p}%</td></tr>`; });
+    document.querySelector('#monthlyReportTable tbody').innerHTML = monthlyHtml;
+    let licenseCount = { "SIHHİ MÜESSESE": 0, "GAYRİ SIHHİ MÜESSESE": 0, "UMUMA AÇIK MÜESSESE": 0 };
+    currentReportData.forEach(d => { if(licenseCount[d.ruhsatTur] !== undefined) licenseCount[d.ruhsatTur]++; });
+    let licenseHtml = ''; for(const [name, count] of Object.entries(licenseCount)) { const p = total > 0 ? ((count/total)*100).toFixed(1) : 0; licenseHtml += `<tr><td style="text-align:left; padding-left:10px;">${name}</td><td>${count}</td><td>${p}%</td></tr>`; }
+    document.querySelector('#licenseReportTable tbody').innerHTML = licenseHtml;
+    let sectorCount = {}; currentReportData.forEach(d => { sectorCount[d.sektor] = (sectorCount[d.sektor] || 0) + 1; });
+    let sortedSectors = Object.entries(sectorCount).sort((a,b)=>b[1]-a[1]);
+    let sectorHtml = ''; for(const [name, count] of sortedSectors) { const p = total > 0 ? ((count/total)*100).toFixed(1) : 0; sectorHtml += `<tr><td style="text-align:left; padding-left:10px;">${name}</td><td>${count}</td><td>${p}%</td></tr>`; }
+    document.querySelector('#sectorReportTable tbody').innerHTML = sectorHtml;
+    let mahalleCount = {}; currentReportData.forEach(d => { mahalleCount[d.mahalle] = (mahalleCount[d.mahalle] || 0) + 1; });
+    let sortedMahalle = Object.entries(mahalleCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    let mahalleHtml = ''; for(const [name, count] of sortedMahalle) { const p = total > 0 ? ((count/total)*100).toFixed(1) : 0; mahalleHtml += `<tr><td style="text-align:left; padding-left:10px;">${name}</td><td>${count}</td><td>${p}%</td></tr>`; }
+    document.querySelector('#neighborhoodReportTable tbody').innerHTML = mahalleHtml;
+    let inspectorCount = {}; currentReportData.forEach(d => { inspectorCount[d.raporTutan] = (inspectorCount[d.raporTutan] || 0) + 1; });
+    let sortedInspector = Object.entries(inspectorCount).sort((a,b)=>b[1]-a[1]);
+    let inspectorHtml = ''; for(const [name, count] of sortedInspector) { const p = total > 0 ? ((count/total)*100).toFixed(1) : 0; inspectorHtml += `<tr><td style="text-align:left; padding-left:10px;">${name}</td><td>${count}</td><td>${p}%</td></tr>`; }
+    document.querySelector('#inspectorReportTable tbody').innerHTML = inspectorHtml;
+}
+
+function applyFilters() {
+    const month = document.getElementById('monthFilter').value;
+    const license = document.getElementById('licenseFilter').value;
+    const inspType = document.getElementById('inspectionTypeFilter').value;
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    filteredData = masterData.filter(d => {
+        if(month !== "ALL" && d.ay !== month) return false;
+        if(license !== "ALL" && d.ruhsatTur !== license) return false;
+        if(inspType !== "ALL" && d.izahat !== inspType) return false;
+        if(search && !`${d.mahalle} ${d.faaliyet} ${d.dosyaNo}`.toLowerCase().includes(search)) return false;
+        return true;
+    });
+    currentPage = 1; renderTable();
+}
+
+function renderTable() {
+    const start = (currentPage-1)*rowsPerPage;
+    const pageData = filteredData.slice(start, start+rowsPerPage);
+    const tbody = document.getElementById('tableBody');
+    if(pageData.length === 0) { tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;">📭 Kayıt bulunamadı</td></tr>'; document.getElementById('paginationControls').innerHTML = ''; return; }
+    let html = '';
+    pageData.forEach(row => { html += `<tr><td>${row.id}</td><td>${row.ay}</td><td>${row.tarih.slice(0,10)}</td><td>${row.dosyaNo}</td><td>${row.mahalle}</td><td>${row.faaliyet}</td><td><span class="badge">${row.ruhsatTur}</span></td><td>${row.sektor}</td><td><span class="badge">${row.izahat}</span></td><td>${row.raporTutan}</td><td><button class="edit-btn" data-id="${row.id}"><i class="fas fa-edit"></i> Düzenle</button><button class="delete-btn" data-id="${row.id}"><i class="fas fa-trash"></i> Sil</button></td></tr>`; });
+    tbody.innerHTML = html;
+    const totalPages = Math.ceil(filteredData.length/rowsPerPage);
+    document.getElementById('paginationControls').innerHTML = `<button id="firstPage" ${currentPage===1?'disabled':''}>« İlk</button><button id="prevPage" ${currentPage===1?'disabled':''}>‹ Önceki</button><span>Sayfa ${currentPage}/${totalPages} (${filteredData.length} kayıt)</span><button id="nextPage" ${currentPage===totalPages?'disabled':''}>Sonraki ›</button><button id="lastPage" ${currentPage===totalPages?'disabled':''}>Son »</button>`;
+    document.getElementById('firstPage')?.addEventListener('click',()=>{currentPage=1;renderTable();});
+    document.getElementById('prevPage')?.addEventListener('click',()=>{if(currentPage>1){currentPage--;renderTable();}});
+    document.getElementById('nextPage')?.addEventListener('click',()=>{if(currentPage<totalPages){currentPage++;renderTable();}});
+    document.getElementById('lastPage')?.addEventListener('click',()=>{currentPage=totalPages;renderTable();});
+    document.querySelectorAll('.edit-btn').forEach(btn => { btn.onclick = () => { openEditModal(parseInt(btn.dataset.id)); }; });
+    document.querySelectorAll('.delete-btn').forEach(btn=>{ btn.onclick=()=>{ const id=parseInt(btn.dataset.id); masterData=masterData.filter(i=>i.id!==id); masterData.forEach((i,idx)=>i.id=idx+1); saveToLocalStorage(); refreshAllPages(); showToast('Kayıt silindi!'); }; });
+}
+
+const monthSelect = document.getElementById('editAy');
+if (monthSelect) { monthsList.forEach(month => { const option = document.createElement('option'); option.value = month; option.textContent = month; monthSelect.appendChild(option); }); }
+
+document.getElementById('addRecordBtn').addEventListener('click',()=>{ const newId=masterData.length+1; masterData.push({ id:newId, ay:document.getElementById('newAy').value, tarih:document.getElementById('newTarih').value, dosyaNo:document.getElementById('newDosyaNo').value||"YENİ", mahalle:document.getElementById('newMahalle').value||"BELİRTİLMEMİŞ", faaliyet:document.getElementById('newFaaliyet').value||"BELİRTİLMEMİŞ", ruhsatTur:document.getElementById('newRuhsatTur').value, sektor:document.getElementById('newSektor').value, izahat:document.getElementById('newIzahat').value, raporTutan:document.getElementById('newRaporTutan').value||"GÖREVLİ" }); saveToLocalStorage(); refreshAllPages(); document.getElementById('newDosyaNo').value=''; document.getElementById('newMahalle').value=''; document.getElementById('newFaaliyet').value=''; showToast('Yeni kayıt eklendi!'); });
+
+document.getElementById('monthFilter')?.addEventListener('change', applyFilters);
+document.getElementById('licenseFilter')?.addEventListener('change', applyFilters);
+document.getElementById('inspectionTypeFilter')?.addEventListener('change', applyFilters);
+document.getElementById('searchInput')?.addEventListener('input', applyFilters);
+document.getElementById('resetFiltersBtn')?.addEventListener('click',()=>{ document.getElementById('monthFilter').value='ALL'; document.getElementById('licenseFilter').value='ALL'; document.getElementById('inspectionTypeFilter').value='ALL'; document.getElementById('searchInput').value=''; applyFilters(); });
+document.getElementById('refreshNeighborhoodBtn')?.addEventListener('click',()=>updateNeighborhoodChart());
+document.getElementById('chartTypeSelect')?.addEventListener('change',()=>updateNeighborhoodChart());
+document.getElementById('neighborhoodSelect')?.addEventListener('change',()=>updateNeighborhoodChart());
+
+document.getElementById('pdfReportBtn')?.addEventListener('click',()=>{ const element = document.getElementById('reportContent'); const opt = { margin: [1,1,1,1], filename: `Basaksehir_Denetim_Raporu_${new Date().toLocaleDateString('tr-TR')}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 3, logging: false, useCORS: true, backgroundColor: '#ffffff' }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }; html2pdf().set(opt).from(element).save().then(()=>showToast('PDF kaydedildi!')).catch(()=>showToast('PDF hatası')); });
+
+document.getElementById('applyDateRange')?.addEventListener('click',()=>{ applyDateRange(); });
+document.getElementById('closeModalBtn')?.addEventListener('click', closeEditModal);
+document.getElementById('cancelEditBtn')?.addEventListener('click', closeEditModal);
+document.getElementById('saveEditBtn')?.addEventListener('click', saveEdit);
+document.getElementById('syncToCloudBtn')?.addEventListener('click', syncToCloud);
+
+document.getElementById('exportJSONBtn')?.addEventListener('click', ()=>{ const dataStr = JSON.stringify(masterData, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `denetim_verileri_${new Date().toLocaleDateString('tr-TR')}.json`; link.click(); URL.revokeObjectURL(url); showToast('Veriler dışa aktarıldı!'); });
+document.getElementById('clearDataBtn')?.addEventListener('click', ()=>{ if(confirm('TÜM VERİLER KALICI OLARAK SİLİNECEK! Devam etmek istediğinize emin misiniz?')) { localStorage.removeItem('basaksehir_denetim_data'); generateSampleData(); saveToLocalStorage(); refreshAllPages(); showToast('Veriler sıfırlandı!'); } });
+document.getElementById('importJSONBtn')?.addEventListener('click', () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.onchange = (e) => { if (e.target.files.length > 0) { const reader = new FileReader(); reader.onload = function(ev) { try { const importedData = JSON.parse(ev.target.result); if (Array.isArray(importedData)) { masterData = importedData; masterData.forEach((item, idx) => item.id = idx + 1); saveToLocalStorage(); refreshAllPages(); showToast(`${masterData.length} kayıt içe aktarıldı!`); } else { showToast('Hatalı dosya formatı!'); } } catch (err) { showToast('Hatalı JSON dosyası!'); } }; reader.readAsText(e.target.files[0]); } }; input.click(); });
+
+document.getElementById('editModal')?.addEventListener('click', (e) => { if (e.target === document.getElementById('editModal')) closeEditModal(); });
+
+refreshAllPages();
+
+// Sayfa yüklendiğinde buluttan veri çekmeyi dene
+setTimeout(() => { loadFromCloud(); }, 1000);
+</script>
+</body>
+</html>
